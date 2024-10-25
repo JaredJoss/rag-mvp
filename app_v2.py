@@ -1,10 +1,9 @@
 import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.embeddings import OllamaEmbeddings, HuggingFaceEmbeddings
 from langchain_community.llms import Ollama
-from langchain_community.vectorstores import Chroma
-from langchain_community.vectorstores import FAISS
+from langchain_community.vectorstores import Chroma, FAISS
 from langchain.chains import RetrievalQAWithSourcesChain, RetrievalQA
 from langchain.prompts import PromptTemplate
 import os
@@ -68,7 +67,9 @@ def load_and_process_documents(directory):
     texts = text_splitter.split_documents(documents)
     
     # Create embeddings
-    embeddings = OllamaEmbeddings(model="nomic-embed-text")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="all-MiniLM-L6-v2"
+    )
     
     # # Create vector store
     # db = Chroma.from_documents(
@@ -171,8 +172,12 @@ if uploaded_files:
                 "lambda_mult": 0.7
             }
         ),
-        chain_type_kwargs={"prompt": PROMPT},
+        chain_type_kwargs={
+            "prompt": PROMPT,
+            "document_variable_name": "summaries"
+            },
         return_source_documents=True
+        
     )
     
     # Initialize chat history
@@ -200,7 +205,7 @@ if uploaded_files:
                         result = qa(prompt)
                         
                         # Display answer
-                        st.markdown(result["answer"])
+                        st.markdown(result["result"])
                         
                         # Display sources
                         st.markdown("**Sources:**")
@@ -208,7 +213,7 @@ if uploaded_files:
                             st.markdown(f"- {source.metadata.get('source', 'Unknown source')}")
                         
                         # Save to chat history
-                        full_response = f"{result['answer']}\n\n**Sources:**\n" + \
+                        full_response = f"{result['result']}\n\n**Sources:**\n" + \
                             "\n".join([f"- {source.metadata.get('source', 'Unknown source')}" 
                                      for source in result["source_documents"]])
                         st.session_state.messages.append({"role": "assistant", "content": full_response})
