@@ -4,7 +4,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.llms import Ollama
 from langchain_community.vectorstores import Chroma
-from langchain.chains import RetrievalQAWithSourcesChain
+from langchain.vectorstores import FAISS
+from langchain.chains import RetrievalQAWithSourcesChain, RetrievalQA
 from langchain.prompts import PromptTemplate
 import os
 import re
@@ -69,15 +70,23 @@ def load_and_process_documents(directory):
     # Create embeddings
     embeddings = OllamaEmbeddings(model="nomic-embed-text")
     
-    # Create vector store
-    db = Chroma.from_documents(
-        documents=texts,
-        embedding=embeddings,
-        persist_directory="./chroma_db"
-    )
-    db.persist()
+    # # Create vector store
+    # db = Chroma.from_documents(
+    #     documents=texts,
+    #     embedding=embeddings,
+    #     persist_directory="./chroma_db"
+    # )
+    # db.persist()
+
+    # return db
+
+    # Create FAISS vector store
+    vectorstore = FAISS.from_documents(texts, embeddings)
     
-    return db
+    # Save the index locally
+    vectorstore.save_local("faiss_index")
+    
+    return vectorstore
 
 @st.cache_data
 def get_qa_response(_qa, question: str):
@@ -118,18 +127,20 @@ if uploaded_files:
         with open(os.path.join('./documents', file.name), 'wb') as f:
             f.write(file.getbuffer())
     
-    # Load and process documents
-    db = load_and_process_documents('./documents')
+    # # Load and process documents
+    # db = load_and_process_documents('./documents')
     
-    # Create improved retriever
-    retriever = db.as_retriever(
-        search_type="mmr",
-        search_kwargs={
-            "k": 5,
-            "fetch_k": 8,
-            "lambda_mult": 0.7
-        }
-    )
+    # # Create improved retriever
+    # retriever = db.as_retriever(
+    #     search_type="mmr",
+    #     search_kwargs={
+    #         "k": 5,
+    #         "fetch_k": 8,
+    #         "lambda_mult": 0.7
+    #     }
+    # )
+
+    vectorstore = load_and_process_documents('./documents')
     
     # Create LLM instance with temperature control
     llm = Ollama(
@@ -137,16 +148,31 @@ if uploaded_files:
         temperature=0.3
     )
     
-    # Create enhanced QA chain
-    qa = RetrievalQAWithSourcesChain.from_chain_type(
+    # # Create enhanced QA chain
+    # qa = RetrievalQAWithSourcesChain.from_chain_type(
+    #     llm=llm,
+    #     chain_type="stuff",
+    #     retriever=retriever,
+    #     return_source_documents=True,
+    #     chain_type_kwargs={
+    #     "prompt": PROMPT,
+    #     "document_variable_name": "summaries"
+    #     }
+    # )
+
+    qa = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
-        retriever=retriever,
-        return_source_documents=True,
-        chain_type_kwargs={
-        "prompt": PROMPT,
-        "document_variable_name": "summaries"
-        }
+        retriever=vectorstore.as_retriever(
+            search_type="mmr",
+            search_kwargs={
+                "k": 5,
+                "fetch_k": 8,
+                "lambda_mult": 0.7
+            }
+        ),
+        chain_type_kwargs={"prompt": PROMPT},
+        return_source_documents=True
     )
     
     # Initialize chat history
@@ -170,7 +196,8 @@ if uploaded_files:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
                     try:
-                        result = get_qa_response(qa, prompt)
+                        # result = get_qa_response(qa, prompt)
+                        result = qa(prompt)
                         
                         # Display answer
                         st.markdown(result["answer"])
