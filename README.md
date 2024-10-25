@@ -46,4 +46,5 @@ Upload Documents: Click on the "Upload your documents" button to select PDF or T
 - [ ] Try other embedding models.
 - [ ] Try other LLMs.
 - [ ] Try a different prompt.
+- [ ] Use docker to deploy so can use Ollama in the .
 - [ ] Deploy to cloud.
