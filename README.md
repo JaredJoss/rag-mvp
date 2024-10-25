@@ -39,3 +39,11 @@ streamlit run app_v2.py
 
 ## Usage
 Upload Documents: Click on the "Upload your documents" button to select PDF or TXT
+
+## To do:
+- [ ] How does it scale to multiple documents.
+- [ ] Sometime it does not get the answer, can I ask it to try 3 times before it says "I don't know".
+- [ ] Try other embedding models.
+- [ ] Try other LLMs.
+- [ ] Try a different prompt.
+- [ ] Deploy to cloud.
