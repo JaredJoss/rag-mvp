@@ -177,7 +177,6 @@ if uploaded_files:
             "document_variable_name": "summaries"
             },
         return_source_documents=True
-        
     )
     
     # Initialize chat history
